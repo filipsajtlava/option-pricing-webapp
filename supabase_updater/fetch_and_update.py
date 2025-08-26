@@ -1,6 +1,6 @@
 import yfinance as yf
 import pandas as pd
-import os
+import os, requests
 import numpy as np
 from supabase import create_client
 from datetime import datetime, timedelta, timezone
@@ -8,12 +8,27 @@ from config import AppSettings, OptionType
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
-supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+supabase_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 print("Supabase client initialized.")
 
-def get_possible_sp500_tickers():
+def fetch_sp500_tickers(table_name="sp500_tickers"):
+    # Might seem unnecessary to overcomplicate the ticker fetching, but the wikipedia url tends 
+    # to get changed a lot, so just in case
     url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-    tickers = pd.read_html(url)[0]["Symbol"].str.replace(".", "-", regex=False).to_list()
+    headers = {"User-Agent": "Mozilla/5.0"}
+    response = requests.get(url, headers=headers)
+    try:
+        df = pd.DataFrame()
+        df["symbol"] = pd.read_html(response.text)[0]["Symbol"].str.replace(".", "-", regex=False).to_list()
+        df["snapshot_date"] = datetime.now(timezone.utc).date().isoformat()
+        df = df.to_dict(orient="records")
+        supabase_client.table(table_name).delete().neq("symbol", "").execute()
+        supabase_client.table(table_name).insert(df).execute()
+        print("Current tickers successfully fetched.")
+    except:
+        print("There is a problem with ticker fetching and upload, defaulting to saved data.")
+    response_tickers = supabase_client.table(table_name).select("symbol").execute()
+    tickers = pd.DataFrame(response_tickers.data)["symbol"].tolist()
     return tickers
 
 def get_closest_expiry(expirations, days_to_expiry=AppSettings.MODELLED_OPTIONS_EXPIRY_DAYS):
@@ -51,14 +66,15 @@ def fetch_option_data(yf_ticker, ticker, expiry):
     return df
 
 def upload_to_supabase(df, table_name="options_snapshot"):
+    supabase_client.table(table_name).delete().neq("ticker", "").execute()
     print(f"Uploading {len(df)} rows to Supabase table '{table_name}'...")
     records = df.to_dict(orient="records")
-    supabase.table(table_name).insert(records).execute()
+    supabase_client.table(table_name).insert(records).execute()
     print("Upload to Supabase complete.")
 
 if __name__ == "__main__":
     print("=== OPTIONS SNAPSHOT START ===")
-    tickers = get_possible_sp500_tickers()
+    tickers = fetch_sp500_tickers()
     all_options_df = pd.DataFrame()
 
     for idx, ticker in enumerate(tickers):
@@ -81,7 +97,6 @@ if __name__ == "__main__":
 
     print(f"\nTotal options rows collected: {len(all_options_df)}")
     if not all_options_df.empty:
-        supabase.table("options_snapshot").delete().neq("ticker", "").execute()
         upload_to_supabase(all_options_df)
     else:
         print("No data to upload.")

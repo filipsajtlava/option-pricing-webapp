@@ -390,7 +390,7 @@ def render_price_bubble(price, option_type, config, color_config, font_size = 18
                                 padding=padding
                                 )
 
-def initialize_hv_option_class(options_data, selected_option, closest_expiry, option_type, config):
+def initialize_hv_option_class(options_data, selected_ticker, selected_option, closest_expiry, option_type, config):
     selected_strike_price = options_data.loc[selected_option, "Strike price (K)"]
     hist_volatility = calculate_historical_volatility(selected_ticker=selected_ticker, config=config)
     days_until_expiry = (datetime.strptime(closest_expiry, "%d.%m.%Y") - datetime.now()).days / TRADING_YEAR_DAYS
@@ -488,6 +488,7 @@ def stage_option_pricing(key_prefix, selected_ticker, config, color_config, supa
 
         hv_option = initialize_hv_option_class(options_data=options_data,
                                                selected_option=selected_option,
+                                               selected_ticker=selected_ticker,
                                                closest_expiry=closest_expiry,
                                                option_type=option_type,
                                                config=config
