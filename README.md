@@ -29,14 +29,14 @@ The project is easily accessible through the official streamlit deployment:
 
 ![Part of Monte Carlo simulation](images/mc.gif)
 
-## Tech Stack
+## Technologies used
 
 - **Python**
-- **Streamlit** (for the web interface)
-- **yfinance** (for financial data)
-- **pandas, numpy** (for data processing)
-- **plotly** (for interactive plots)
-- **Supabase** (as a backend database)
+- **Streamlit** for the web interface
+- financial data fetching from **yfinance**
+- **pandas, numpy**
+- graphics made using **plotly**
+- **Supabase** as a backend database (saving actual market prices)
 
 ## Getting Started
 
