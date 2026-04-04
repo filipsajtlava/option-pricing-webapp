@@ -59,8 +59,13 @@ def calculate_historical_volatility(selected_ticker, config):
 
     return historical_volatility
 
-@st.cache_data
+@st.cache_data(ttl=3600)
 def get_risk_free_rate():
-    shy = yf.Ticker("SHY")
-    risk_free_rate = shy.info["dividendYield"] / 100
-    return risk_free_rate
+    try:
+        shy = yf.Ticker("SHY")
+        risk_free_rate = shy.info["dividendYield"] / 100 
+        if risk_free_rate is None or risk_free_rate == 0:
+            return 0.04  # Fallback to 4 %
+        return risk_free_rate
+    except Exception as e:
+        return 0.04
